@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { LayoutDashboard, Network, Bug, FileText, Menu, Search, Lock, Briefcase, Bitcoin, Server, ArrowRight, History, LogOut, Radar } from 'lucide-react';
 import Dashboard from './components/Dashboard';
@@ -11,7 +10,6 @@ import HostRecon from './components/HostRecon';
 import ActivityLog from './components/ActivityLog';
 import SearchIntel from './components/SearchIntel';
 import Login from './components/Login';
-import { MOCK_SITES, MOCK_CASES } from './services/mockData';
 import { OnionSite, CaseFile, CaseEvidence } from './types';
 
 const App: React.FC = () => {
@@ -21,9 +19,9 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'search' | 'crawler' | 'intel' | 'network' | 'investigation' | 'crypto' | 'recon' | 'activity'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // App-wide state for data sharing
-  const [crawledLibrary, setCrawledLibrary] = useState<OnionSite[]>(MOCK_SITES);
-  const [cases, setCases] = useState<CaseFile[]>(MOCK_CASES);
+  // PRODUCTION STATE: Start empty, populate only via API interactions
+  const [crawledLibrary, setCrawledLibrary] = useState<OnionSite[]>([]);
+  const [cases, setCases] = useState<CaseFile[]>([]);
   const [reconTarget, setReconTarget] = useState('');
 
   // Global Search State
@@ -112,12 +110,12 @@ const App: React.FC = () => {
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0
       `}>
         <div className="p-6 border-b border-slate-800 flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center text-slate-950">
+            <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center text-white">
                 <Lock size={18} strokeWidth={3} />
             </div>
             <div>
                 <h1 className="font-bold text-lg tracking-tight text-white">TorWatch</h1>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Intel Platform v2.4</p>
+                <p className="text-[10px] text-red-500 uppercase tracking-widest font-mono font-bold">LIVE PRODUCTION</p>
             </div>
         </div>
         
@@ -125,7 +123,7 @@ const App: React.FC = () => {
             <div className="text-xs font-bold text-slate-600 uppercase px-4 mb-2 mt-2">Surveillance</div>
             <NavItem view="dashboard" icon={LayoutDashboard} label="Dashboard" />
             <NavItem view="search" icon={Radar} label="Deep Search" />
-            <NavItem view="crawler" icon={Bug} label="Live Crawler" />
+            <NavItem view="crawler" icon={Bug} label="Tor Crawler" />
             <NavItem view="network" icon={Network} label="Network Graph" />
             <NavItem view="intel" icon={FileText} label="Intelligence AI" />
             
@@ -142,11 +140,11 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">
-                        AG
+                        OP
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-white">Agent 42</p>
-                        <p className="text-xs text-slate-500">Cybercrime Unit</p>
+                        <p className="text-sm font-semibold text-white">Operator</p>
+                        <p className="text-xs text-emerald-500 font-mono">Secure Connection</p>
                     </div>
                 </div>
                 <button 
@@ -176,7 +174,7 @@ const App: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition" size={16} />
                     <input 
                         type="text" 
-                        placeholder="Search indexed services, hashes, or entities..." 
+                        placeholder="Search indexed services..." 
                         className="w-full bg-slate-950 border border-slate-700 rounded-full py-2 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
                         value={searchQuery}
                         onChange={handleSearchChange}
@@ -235,16 +233,16 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-xs text-emerald-400 font-mono font-bold">SYSTEM ONLINE</span>
+                <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <span className="text-xs text-red-400 font-mono font-bold">LIVE DATA</span>
                 </div>
             </div>
         </header>
 
         {/* View Content */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
-            {currentView === 'dashboard' && <Dashboard />}
+            {currentView === 'dashboard' && <Dashboard library={crawledLibrary} />}
             {currentView === 'search' && (
                 <SearchIntel 
                     onResultsFound={handleSearchResultsFound}
@@ -278,46 +276,17 @@ const App: React.FC = () => {
                 <div className="space-y-6 animate-fade-in">
                     <div className="flex justify-between items-end">
                          <div>
-                            <h2 className="text-2xl font-bold text-white">Darknet Topology</h2>
-                            <p className="text-slate-400">Visualizing relationships between known hidden services.</p>
+                            <h2 className="text-2xl font-bold text-white">Network Topology</h2>
+                            <p className="text-slate-400">Visualizing relationships between crawled services.</p>
                         </div>
                     </div>
-                    <NetworkGraph data={MOCK_SITES} />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                            <h3 className="font-bold text-slate-200 mb-4">Node Legend</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                    <span className="text-slate-300">Critical Threat / Ransomware</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                                    <span className="text-slate-300">High Risk / Marketplace</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                                    <span className="text-slate-300">Low Risk / Blog / Info</span>
-                                </div>
-                            </div>
+                    {crawledLibrary.length > 0 ? (
+                        <NetworkGraph data={crawledLibrary} />
+                    ) : (
+                        <div className="h-[400px] bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center text-slate-500">
+                             <p>No network data available. Perform searches to populate the graph.</p>
                         </div>
-                        <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                             <h3 className="font-bold text-slate-200 mb-2">Network Statistics</h3>
-                             <p className="text-slate-400 text-sm mb-4">
-                                Analysis indicates a strong clustering of illicit marketplaces sharing hosting infrastructure.
-                             </p>
-                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <span className="text-xs text-slate-500 uppercase font-bold">Centrality</span>
-                                    <div className="text-xl font-mono text-white">0.84</div>
-                                </div>
-                                <div>
-                                    <span className="text-xs text-slate-500 uppercase font-bold">Density</span>
-                                    <div className="text-xl font-mono text-white">0.32</div>
-                                </div>
-                             </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>

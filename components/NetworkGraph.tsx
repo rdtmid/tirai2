@@ -57,7 +57,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data }) => {
       .data(nodes)
       .join("circle")
       .attr("r", 8)
-      .attr("fill", d => {
+      .attr("fill", (d: any) => {
         if (d.threatLevel === ThreatLevel.CRITICAL) return "#ef4444"; // Red
         if (d.threatLevel === ThreatLevel.HIGH) return "#f97316"; // Orange
         if (d.threatLevel === ThreatLevel.MEDIUM) return "#eab308"; // Yellow
@@ -66,7 +66,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data }) => {
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
       .style("cursor", "pointer")
-      .on("click", (event, d) => {
+      .on("click", (event: any, d: any) => {
         event.stopPropagation();
         setSelectedNode(d as unknown as OnionSite);
       })
@@ -76,7 +76,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data }) => {
         .on("end", dragended));
 
     node.append("title")
-      .text(d => `${d.title} (${d.threatLevel})`);
+      .text((d: any) => `${d.title} (${d.threatLevel})`);
 
     const labels = svg.append("g")
       .selectAll("text")
@@ -84,7 +84,7 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ data }) => {
       .join("text")
       .attr("dx", 12)
       .attr("dy", ".35em")
-      .text(d => d.url.substring(0, 10) + '...')
+      .text((d: any) => d.url.substring(0, 10) + '...')
       .attr("fill", "#94a3b8") // Slate-400
       .style("font-size", "10px")
       .style("font-family", "monospace")

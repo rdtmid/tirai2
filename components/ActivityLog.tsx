@@ -3,22 +3,18 @@ import {
   Table, 
   Search, 
   Download, 
-  Filter, 
   ShieldAlert, 
   Globe, 
   Activity, 
   Calendar, 
   Server,
   FileText,
-  ChevronDown,
   ArrowUpDown,
   CheckCircle2,
   XCircle
 } from 'lucide-react';
-import { MOCK_SITES } from '../services/mockData';
-import { ThreatLevel, SiteCategory } from '../types';
+import { ThreatLevel } from '../types';
 
-// Extended type for the unified log view
 interface ActivityLogEntry {
   id: string;
   timestamp: string;
@@ -32,66 +28,11 @@ interface ActivityLogEntry {
   details: string;
 }
 
-// Generate some historical data combining mock sites and random history
-const generateMockLogs = (): ActivityLogEntry[] => {
-  const logs: ActivityLogEntry[] = MOCK_SITES.map(site => ({
-    id: `log-${site.id}`,
-    timestamp: site.lastSeen,
-    target: site.url,
-    type: 'CRAWL',
-    category: site.category,
-    riskScore: site.threatLevel === 'CRITICAL' ? 95 : site.threatLevel === 'HIGH' ? 75 : 40,
-    threatLevel: site.threatLevel,
-    location: 'Unknown (Tor Network)',
-    status: 'SUCCESS',
-    details: 'Indexed successfully via crawler.'
-  }));
-
-  // Add some Recon/Intel specific logs
-  logs.push(
-    {
-      id: 'log-recon-1',
-      timestamp: new Date(Date.now() - 10000000).toISOString(),
-      target: '185.193.120.44',
-      type: 'RECON',
-      category: 'INFRASTRUCTURE',
-      riskScore: 85,
-      threatLevel: ThreatLevel.HIGH,
-      location: 'Moldova',
-      status: 'SUCCESS',
-      details: 'Identified bulletproof hosting provider.'
-    },
-    {
-      id: 'log-intel-1',
-      timestamp: new Date(Date.now() - 5000000).toISOString(),
-      target: 'DarkVendor_99',
-      type: 'INTEL',
-      category: 'ENTITY',
-      riskScore: 60,
-      threatLevel: ThreatLevel.MEDIUM,
-      location: 'N/A',
-      status: 'SUCCESS',
-      details: 'Profile generation from forum dump.'
-    },
-    {
-      id: 'log-trace-1',
-      timestamp: new Date(Date.now() - 2000000).toISOString(),
-      target: 'bc1qxy...83kkfjh',
-      type: 'TRACE',
-      category: 'FINANCIAL',
-      riskScore: 92,
-      threatLevel: ThreatLevel.CRITICAL,
-      location: 'Global (Blockchain)',
-      status: 'SUCCESS',
-      details: 'High volume laundering detected.'
-    }
-  );
-
-  return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-};
-
 const ActivityLog: React.FC = () => {
-  const [logs] = useState<ActivityLogEntry[]>(generateMockLogs());
+  // Start with EMPTY logs for production. 
+  // In a real full-stack app, this would fetch from an API endpoint (e.g., /api/logs).
+  // For this frontend, it displays logs of the current session.
+  const [logs] = useState<ActivityLogEntry[]>([]); 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [sortConfig, setSortConfig] = useState<{ key: keyof ActivityLogEntry; direction: 'asc' | 'desc' } | null>(null);
@@ -273,21 +214,12 @@ const ActivityLog: React.FC = () => {
               {sortedLogs.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-10 text-center text-slate-500 italic">
-                    No activity logs found matching your filters.
+                    Log database empty. Logs will appear here as operations occur.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-        
-        {/* Pagination Footer (Visual Only) */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/30 flex justify-between items-center text-xs text-slate-500">
-           <span>Showing {sortedLogs.length} entries</span>
-           <div className="flex gap-2">
-              <button className="px-2 py-1 bg-slate-800 rounded hover:bg-slate-700 disabled:opacity-50" disabled>Previous</button>
-              <button className="px-2 py-1 bg-slate-800 rounded hover:bg-slate-700 disabled:opacity-50" disabled>Next</button>
-           </div>
         </div>
       </div>
     </div>

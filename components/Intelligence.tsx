@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Brain, AlertTriangle, FileSearch, ArrowRight, Save, Database, X, Briefcase } from 'lucide-react';
 import { analyzeTorContent } from '../services/geminiService';
 import { AnalysisResult, CaseFile, CaseEvidence } from '../types';
-import { RAW_SAMPLE_TEXTS } from '../services/mockData';
 
 interface IntelligenceProps {
     cases?: CaseFile[];
@@ -24,11 +23,6 @@ const Intelligence: React.FC<IntelligenceProps> = ({ cases = [], onAddEvidence }
     
     setResult(analysis);
     setIsAnalyzing(false);
-  };
-
-  const loadSample = () => {
-    const random = RAW_SAMPLE_TEXTS[Math.floor(Math.random() * RAW_SAMPLE_TEXTS.length)];
-    setInputText(random);
   };
 
   const handleSaveToCase = (caseId: string) => {
@@ -62,12 +56,6 @@ const Intelligence: React.FC<IntelligenceProps> = ({ cases = [], onAddEvidence }
                         <p className="text-xs text-slate-400">Powered by Gemini 3 Flash</p>
                     </div>
                 </div>
-                <button 
-                    onClick={loadSample}
-                    className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded transition"
-                >
-                    Load Intercepted Packet
-                </button>
             </div>
 
             <textarea

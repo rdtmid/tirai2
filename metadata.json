@@ -1,0 +1,5 @@
+{
+  "name": "TorWatch Intelligence",
+  "description": "A professional-grade intelligence dashboard for simulating the crawling, analysis, and visualization of dark web (TOR) hidden services. Features AI-powered threat analysis using Gemini, network graph visualization, and simulated live crawling.",
+  "requestFramePermissions": []
+}

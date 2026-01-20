@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { LayoutDashboard, Network, Bug, FileText, Menu, Search, Lock, Briefcase, Bitcoin, Server, ArrowRight, History } from 'lucide-react';
+import { LayoutDashboard, Network, Bug, FileText, Menu, Search, Lock, Briefcase, Bitcoin, Server, ArrowRight, History, LogOut, Radar } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import Crawler from './components/Crawler';
 import Intelligence from './components/Intelligence';
@@ -8,11 +9,16 @@ import Investigation from './components/Investigation';
 import CryptoTrace from './components/CryptoTrace';
 import HostRecon from './components/HostRecon';
 import ActivityLog from './components/ActivityLog';
+import SearchIntel from './components/SearchIntel';
+import Login from './components/Login';
 import { MOCK_SITES, MOCK_CASES } from './services/mockData';
 import { OnionSite, CaseFile, CaseEvidence } from './types';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'crawler' | 'intel' | 'network' | 'investigation' | 'crypto' | 'recon' | 'activity'>('dashboard');
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const [currentView, setCurrentView] = useState<'dashboard' | 'search' | 'crawler' | 'intel' | 'network' | 'investigation' | 'crypto' | 'recon' | 'activity'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // App-wide state for data sharing
@@ -24,12 +30,25 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<OnionSite[]>([]);
 
+  // If not authenticated, show Login screen
+  if (!isAuthenticated) {
+      return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   const handleSiteFound = (site: OnionSite) => {
-    // Prevent duplicates
+    // Prevent duplicates based on URL
     setCrawledLibrary(prev => {
         if (prev.find(s => s.url === site.url)) return prev;
         return [site, ...prev];
     });
+  };
+
+  const handleSearchResultsFound = (results: OnionSite[]) => {
+      // Add multiple results to library
+      setCrawledLibrary(prev => {
+          const newSites = results.filter(newSite => !prev.some(existing => existing.url === newSite.url));
+          return [...newSites, ...prev];
+      });
   };
 
   const handleAnalyzeHost = (url: string) => {
@@ -105,6 +124,7 @@ const App: React.FC = () => {
         <nav className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
             <div className="text-xs font-bold text-slate-600 uppercase px-4 mb-2 mt-2">Surveillance</div>
             <NavItem view="dashboard" icon={LayoutDashboard} label="Dashboard" />
+            <NavItem view="search" icon={Radar} label="Deep Search" />
             <NavItem view="crawler" icon={Bug} label="Live Crawler" />
             <NavItem view="network" icon={Network} label="Network Graph" />
             <NavItem view="intel" icon={FileText} label="Intelligence AI" />
@@ -119,14 +139,23 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-800 shrink-0">
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">
-                    AG
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">
+                        AG
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold text-white">Agent 42</p>
+                        <p className="text-xs text-slate-500">Cybercrime Unit</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="text-sm font-semibold text-white">Agent 42</p>
-                    <p className="text-xs text-slate-500">Cybercrime Unit</p>
-                </div>
+                <button 
+                    onClick={() => setIsAuthenticated(false)}
+                    className="text-slate-500 hover:text-red-400 transition"
+                    title="Logout"
+                >
+                    <LogOut size={16} />
+                </button>
             </div>
         </div>
       </aside>
@@ -216,6 +245,12 @@ const App: React.FC = () => {
         {/* View Content */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
             {currentView === 'dashboard' && <Dashboard />}
+            {currentView === 'search' && (
+                <SearchIntel 
+                    onResultsFound={handleSearchResultsFound}
+                    onAnalyze={handleAnalyzeHost}
+                />
+            )}
             {currentView === 'crawler' && (
                 <Crawler 
                     onSiteFound={handleSiteFound} 

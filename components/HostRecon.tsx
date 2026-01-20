@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Server, Search, Terminal, Globe, ShieldAlert, Cpu, Layers, Activity, Lock, History, MapPin, FileSearch, X, ExternalLink } from 'lucide-react';
-import { analyzeInfrastructure } from '../services/geminiService'; // Still used for risk assessment of gathered data
-import { fetchRealIpData, fetchRealWhois } from '../services/api';
+import { Server, Search, Terminal, Globe, ShieldAlert, Cpu, Layers, Activity, Lock, History, MapPin, FileSearch, X, ExternalLink, AlertTriangle } from 'lucide-react';
+import { analyzeInfrastructure } from '../services/geminiService';
+import { fetchRealIpData, fetchRealWhois, performLiveRecon } from '../services/api';
 import { HostReconResult, WhoisResult } from '../types';
 
 interface HostReconProps {
@@ -41,32 +42,43 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
     setIsScanning(true);
     setResult(null);
     setErrorMessage(null);
-    setLogs(['Initializing reconnaissance module...', `Target acquired: ${target}`]);
+    setLogs(['Initializing ACTIVE reconnaissance...', `Target acquired: ${target}`]);
 
     // Check if target is IP or Onion
     const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(target);
-    const isOnion = target.endsWith('.onion');
+    const isOnion = target.includes('.onion');
 
     if (isOnion) {
         addLog("Target is a TOR hidden service.");
-        addLog("WARNING: Active backend proxy required for TOR scanning.");
-        addLog("Attempting to connect via local proxy (localhost:9050)...");
-        // In a real browser app without a backend, we cannot proceed with fetching onion data.
-        // We will simulate the "Backend Connection Failed" state to show production readiness.
+        addLog("Routing through Backend SOCKS5 Proxy...");
         
-        setTimeout(async () => {
-             // Fallback to Gemini simulation so the user still sees something, 
-             // but strictly labeled as simulation due to missing backend
-             addLog("Backend proxy unreachable. Falling back to AI Simulation based on hostname.");
-             const analysis = await analyzeInfrastructure(target);
-             setResult(analysis);
-             setIsScanning(false);
-        }, 2000);
+        try {
+            // 1. Call Backend to get Real Headers
+            const scanData = await performLiveRecon(target);
+            
+            if (scanData.status === 'FAILED') {
+                throw new Error(scanData.error || "Backend connection failed. Ensure Tor Proxy is running.");
+            }
+
+            addLog(`Connected to Host. HTTP Status: ${scanData.httpStatus}`);
+            addLog(`Server Header: ${scanData.serverInfo.server}`);
+            addLog("Sending telemetry to AI for profiling...");
+
+            // 2. Send Real Headers to Gemini
+            const analysis = await analyzeInfrastructure(target, scanData);
+            setResult(analysis);
+
+        } catch (e: any) {
+             addLog(`ERROR: ${e.message}`);
+             setErrorMessage(e.message);
+        }
+        
+        setIsScanning(false);
         return;
     }
 
     if (isIp) {
-        addLog("Target is IPv4 Address. Initiating OSINT scan...");
+        addLog("Target is IPv4 Address. Initiating Clearweb OSINT scan...");
         addLog("Querying IP Geolocation DB...");
         
         try {
@@ -77,43 +89,38 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
             addLog(`Provider: ${realData.provider}`);
             addLog("Generating risk profile via AI...");
 
-            // Merge real data with AI assessment
-            // We use Gemini to generate the risk assessment based on the REAL location/provider data
-            const analysis = await analyzeInfrastructure(target); 
+            // Merge real data with AI assessment of that real data
+            const analysis = await analyzeInfrastructure(target, { ...realData, context: "Clearweb IP Scan" }); 
             
             setResult({
                 ...analysis,
-                ...realData as any, // Overwrite simulated fields with real ones where available
-                riskAssessment: `[REAL DATA ANALYSIS] Host is located in ${realData.location} (${realData.provider}). ${analysis.riskAssessment}`
+                ...realData as any, 
+                riskAssessment: `[REAL DATA] Host located in ${realData.location} (${realData.provider}). ${analysis.riskAssessment}`
             });
 
-        } catch (e) {
+        } catch (e: any) {
             addLog("Error accessing public IP APIs.");
-            setErrorMessage("Scan failed: Public APIs unreachable.");
+            setErrorMessage(e.message || "Scan failed.");
         }
         setIsScanning(false);
         return;
     }
 
-    // Default catch-all
-    const analysis = await analyzeInfrastructure(target);
-    setResult(analysis);
+    setErrorMessage("Invalid Target. Please enter an IP address or .onion URL.");
     setIsScanning(false);
   };
 
   const handleWhoisLookup = async () => {
-    // Logic: Use IP estimate or the target itself if it is an IP
     const lookupTarget = result?.ipEstimate !== "Masked" && result?.ipEstimate !== "Unknown" ? result?.ipEstimate : target;
     
-    // Check if valid IP
     if (!/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(lookupTarget || '')) {
-        alert("Cannot perform WHOIS: No valid IP address resolved for this hidden service.");
+        alert("Cannot perform WHOIS: No valid IP address available.");
         return;
     }
 
     setIsLoadingWhois(true);
     
-    // Use Real API
+    // Real API
     const data = await fetchRealWhois(lookupTarget || '');
     
     if (data) {
@@ -136,8 +143,8 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
                 <Server className="text-blue-500" size={24} />
             </div>
             <div>
-                <h2 className="text-xl font-bold text-white">Host Reconnaissance</h2>
-                <p className="text-xs text-slate-400">Supports Real IP OSINT. Tor scanning requires backend SOCKS5 proxy.</p>
+                <h2 className="text-xl font-bold text-white">Active Host Reconnaissance</h2>
+                <p className="text-xs text-slate-400">Real-time HTTP Header analysis & IP Geolocation.</p>
             </div>
         </div>
 
@@ -221,7 +228,7 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
                         </div>
                     </div>
                     <div className="bg-slate-900/50 rounded p-3 border border-slate-700/50">
-                        <div className="text-xs font-bold text-slate-500 uppercase mb-1">Server Header</div>
+                        <div className="text-xs font-bold text-slate-500 uppercase mb-1">Server Header (Real)</div>
                         <code className="text-sm text-slate-200">{result.serverHeader}</code>
                     </div>
                 </div>
@@ -243,7 +250,7 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
                                     </span>
                                 </div>
                             ))}
-                            {result.openPorts.length === 0 && <span className="text-slate-500 text-xs italic">No open ports detected/scanned.</span>}
+                            {result.openPorts.length === 0 && <span className="text-slate-500 text-xs italic">No open ports inferred/scanned.</span>}
                         </div>
                     </div>
 
@@ -254,20 +261,15 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
                         <div className="flex flex-wrap gap-2 content-start">
                             {result.techStack.length > 0 ? (
                                 result.techStack.map((tech, idx) => (
-                                    <a 
+                                    <div 
                                         key={idx} 
-                                        href={`https://www.google.com/search?q=${encodeURIComponent(tech + ' vulnerability exploit')}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group flex items-center gap-1.5 text-xs font-medium bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-blue-300 px-3 py-1.5 rounded-full border border-slate-600 hover:border-blue-400 transition-all cursor-pointer"
-                                        title={`Search for vulnerabilities in ${tech}`}
+                                        className="text-xs font-medium bg-slate-700/50 text-slate-300 px-3 py-1.5 rounded-full border border-slate-600"
                                     >
                                         {tech}
-                                        <ExternalLink size={10} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-                                    </a>
+                                    </div>
                                 ))
                             ) : (
-                                <span className="text-slate-500 text-xs italic">No technologies detected.</span>
+                                <span className="text-slate-500 text-xs italic">No specific technologies identified from headers.</span>
                             )}
                         </div>
                     </div>
@@ -295,15 +297,15 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
              <div className="flex flex-col items-center justify-center text-slate-600 opacity-40 border-2 border-dashed border-slate-800 rounded-lg">
                 {errorMessage ? (
                     <>
-                        <ShieldAlert size={64} className="mb-4 text-red-500 opacity-50" />
-                        <h3 className="text-xl font-bold text-red-400">Scan Error</h3>
+                        <AlertTriangle size={64} className="mb-4 text-red-500 opacity-50" />
+                        <h3 className="text-xl font-bold text-red-400">Scan Failed</h3>
                         <p>{errorMessage}</p>
                     </>
                 ) : (
                     <>
                         <Cpu size={64} className="mb-4" />
-                        <h3 className="text-xl font-bold">Awaiting Scan Results</h3>
-                        <p>Telemetry data will appear here after analysis.</p>
+                        <h3 className="text-xl font-bold">Awaiting Target</h3>
+                        <p>Enter an address to pull REAL telemetry data.</p>
                     </>
                 )}
             </div>
@@ -311,13 +313,13 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
 
       </div>
       
-      {/* WHOIS Modal */}
+      {/* WHOIS Modal (Real Data) */}
       {showWhoisModal && whoisData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden max-h-[80vh]">
                 <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <FileSearch size={18} className="text-blue-400"/> WHOIS Record
+                        <FileSearch size={18} className="text-blue-400"/> WHOIS Record (ARIN/RDAP)
                      </h3>
                      <button onClick={() => setShowWhoisModal(false)} className="text-slate-500 hover:text-white">
                         <X size={20} />
@@ -332,17 +334,6 @@ const HostRecon: React.FC<HostReconProps> = ({ initialTarget }) => {
                          <div className="p-3 bg-slate-950 rounded border border-slate-800">
                              <span className="text-xs text-slate-500 uppercase block mb-1">ASN / CIDR</span>
                              <span className="text-slate-200 font-mono">{whoisData.asn} <br/> {whoisData.cidr}</span>
-                         </div>
-                          <div className="p-3 bg-slate-950 rounded border border-slate-800">
-                             <span className="text-xs text-slate-500 uppercase block mb-1">Location</span>
-                             <span className="text-slate-200 font-mono">{whoisData.countryCode}</span>
-                         </div>
-                          <div className="p-3 bg-slate-950 rounded border border-slate-800">
-                             <span className="text-xs text-slate-500 uppercase block mb-1">Dates</span>
-                             <span className="text-slate-200 font-mono text-xs">
-                                Created: {whoisData.created}<br/>
-                                Updated: {whoisData.updated}
-                             </span>
                          </div>
                      </div>
                      

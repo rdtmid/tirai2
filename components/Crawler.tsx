@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Terminal, ShieldAlert, Globe, Activity, Database, Search, ArrowRight } from 'lucide-react';
 import { CrawlLog, OnionSite, ThreatLevel } from '../types';
-import { generateRandomOnionSite } from '../services/mockData';
-import { fetchCrawlStatus } from '../services/api';
+import { checkSystemStatus } from '../services/api';
 
 interface CrawlerProps {
   onSiteFound: (site: OnionSite) => void;
@@ -16,28 +16,22 @@ const Crawler: React.FC<CrawlerProps> = ({ onSiteFound, library, onAnalyze }) =>
   const [stats, setStats] = useState({ pages: 0, hiddenServices: 0, data: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const logEndRef = useRef<HTMLDivElement>(null);
-  const [backendConnected, setBackendConnected] = useState(false);
-
-  const toggleCrawler = () => {
+  
+  const toggleCrawler = async () => {
     setIsActive(!isActive);
     if (!isActive) {
-      addLog("Initializing TOR consensus...", "INFO");
+      addLog("Initializing Tor Controller...", "INFO");
+      const status = await checkSystemStatus();
       
-      // Check for backend connection
-      fetchCrawlStatus().then(sites => {
-        if(sites.length >= 0) { // If api returns, backend is there
-             setBackendConnected(true);
-             addLog("Connected to Backend Crawler Service.", "SUCCESS");
-        }
-      }).catch(() => {
-          setBackendConnected(false);
-          addLog("Backend Service Unreachable (ws://localhost:3001). Falling back to Simulation Mode.", "WARNING");
-          addLog("Building simulated circuit...", "INFO");
-      });
-      
+      if (status.torStatus === 'ONLINE') {
+        addLog(`Connected to Backend Proxy. Exit Node: ${status.exitNode}`, "SUCCESS");
+        addLog("Crawler Standing By. (Automatic Recursive Crawling is disabled in this version for safety). Use 'Search Intel' to populate library manually.", "WARNING");
+      } else {
+        addLog("ERROR: Backend/Tor Offline. Cannot start crawler.", "ERROR");
+        setIsActive(false);
+      }
     } else {
       addLog("Stopping crawler process...", "WARNING");
-      addLog("Closing circuits...", "INFO");
     }
   };
 
@@ -48,50 +42,12 @@ const Crawler: React.FC<CrawlerProps> = ({ onSiteFound, library, onAnalyze }) =>
       message,
       type
     };
-    setLogs(prev => [...prev.slice(-49), newLog]); // Keep last 50
+    setLogs(prev => [...prev.slice(-49), newLog]); 
   };
 
-  // Scroll to bottom of logs
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
-
-  // Main Loop
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isActive) {
-      interval = setInterval(async () => {
-        
-        if (backendConnected) {
-            // REAL MODE: Poll Backend
-            const newSites = await fetchCrawlStatus();
-            if (newSites.length > 0) {
-                 newSites.forEach(site => {
-                     onSiteFound(site);
-                     addLog(`Indexed: ${site.url}`, "SUCCESS");
-                 });
-                 setStats(s => ({ ...s, hiddenServices: s.hiddenServices + newSites.length }));
-            }
-        } else {
-            // SIMULATION MODE (Fallback)
-            const rand = Math.random();
-            if (rand > 0.85) {
-                const newSite = generateRandomOnionSite();
-                addLog(`Discovered new hidden service: ${newSite.url.substring(0, 20)}...`, "SUCCESS");
-                setStats(s => ({ ...s, hiddenServices: s.hiddenServices + 1 }));
-                onSiteFound(newSite);
-            } else if (rand > 0.6) {
-                setStats(s => ({ ...s, pages: s.pages + Math.floor(Math.random() * 5), data: s.data + Math.random() }));
-                addLog(`Indexing content block ${Math.floor(Math.random() * 9999)}...`, "INFO");
-            }
-        }
-
-      }, 1500);
-    }
-
-    return () => clearInterval(interval);
-  }, [isActive, onSiteFound, backendConnected]);
 
   const filteredLibrary = library.filter(site => 
       site.url.includes(searchTerm) || 
@@ -113,29 +69,30 @@ const Crawler: React.FC<CrawlerProps> = ({ onSiteFound, library, onAnalyze }) =>
                     : 'bg-emerald-500 text-slate-900 hover:bg-emerald-400'
                 }`}
             >
-                {isActive ? <><Square size={16} /> STOP CRAWLER</> : <><Play size={16} /> START CRAWLER</>}
+                {isActive ? <><Square size={16} /> STOP CRAWLER</> : <><Play size={16} /> CHECK CONN</>}
             </button>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
             <div className="flex items-center gap-2 text-slate-400 mb-1">
                 <Globe size={16} />
-                <span className="text-xs uppercase font-bold">Services Found</span>
+                <span className="text-xs uppercase font-bold">Services Indexed</span>
             </div>
             <p className="text-2xl font-mono text-white">{library.length}</p>
         </div>
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+        {/* Placeholder stats since automated crawling is disabled */}
+        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 opacity-50">
             <div className="flex items-center gap-2 text-slate-400 mb-1">
                 <Activity size={16} />
-                <span className="text-xs uppercase font-bold">Pages Indexed</span>
+                <span className="text-xs uppercase font-bold">Pages (Auto)</span>
             </div>
-            <p className="text-2xl font-mono text-white">{stats.pages}</p>
+            <p className="text-2xl font-mono text-white">0</p>
         </div>
-        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 opacity-50">
             <div className="flex items-center gap-2 text-slate-400 mb-1">
                 <ShieldAlert size={16} />
                 <span className="text-xs uppercase font-bold">Data (MB)</span>
             </div>
-            <p className="text-2xl font-mono text-white">{stats.data.toFixed(2)}</p>
+            <p className="text-2xl font-mono text-white">0.00</p>
         </div>
       </div>
 
@@ -164,14 +121,6 @@ const Crawler: React.FC<CrawlerProps> = ({ onSiteFound, library, onAnalyze }) =>
                 ))}
                 <div ref={logEndRef} />
             </div>
-            {isActive && (
-                <div className="absolute bottom-4 right-4">
-                    <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                </div>
-            )}
           </div>
 
           {/* Right: Database Library */}
@@ -202,7 +151,7 @@ const Crawler: React.FC<CrawlerProps> = ({ onSiteFound, library, onAnalyze }) =>
                   {library.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-60">
                           <Database size={32} className="mb-2" />
-                          <span className="text-xs">Database empty</span>
+                          <span className="text-xs">Database empty. Use 'Search Intel' to populate.</span>
                       </div>
                   ) : (
                       <table className="w-full text-left text-xs">

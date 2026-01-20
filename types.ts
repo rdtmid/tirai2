@@ -1,3 +1,4 @@
+
 export enum ThreatLevel {
   LOW = 'LOW',
   MEDIUM = 'MEDIUM',
@@ -24,6 +25,8 @@ export interface OnionSite {
   threatLevel: ThreatLevel;
   contentSnippet?: string;
   connections: string[]; // IDs of other sites linked to
+  source?: string; // e.g. "Crawler", "Ahmia Search", "Pastebin"
+  engine?: string; // Specific engine used
 }
 
 export interface AnalysisResult {

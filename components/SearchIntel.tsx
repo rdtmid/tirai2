@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Search, Globe, FileText, Terminal, Database, ArrowRight, Shield, CheckCircle, Save, Loader, AlertTriangle } from 'lucide-react';
 import { OnionSite } from '../types';
@@ -10,14 +9,12 @@ interface SearchIntelProps {
 }
 
 const ENGINES = [
-  { id: 'ahmia', name: 'Ahmia (Tor)', icon: Globe, description: 'Real-time scraping of Ahmia.fi via Backend Proxy' },
-  // Disabled others for now as we only implemented real scraper for Ahmia
-  // { id: 'darksearch', name: 'DarkSearch', ... }, 
+  { id: 'torch', name: 'Torch (V3)', icon: Globe, description: 'Deep indexing via Torch Hidden Service.' },
 ];
 
 const SearchIntel: React.FC<SearchIntelProps> = ({ onResultsFound, onAnalyze }) => {
   const [query, setQuery] = useState('');
-  const [selectedEngines, setSelectedEngines] = useState<string[]>(['ahmia']);
+  const [selectedEngines, setSelectedEngines] = useState<string[]>(['torch']);
   const [isSearching, setIsSearching] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [results, setResults] = useState<OnionSite[]>([]);
@@ -45,13 +42,24 @@ const SearchIntel: React.FC<SearchIntelProps> = ({ onResultsFound, onAnalyze }) 
 
     try {
         addLog(`Routing query via Backend Proxy -> Tor Network...`);
-        addLog(`Engine: Ahmia.fi Hidden Service`);
+        addLog(`Engine: Torch Onion Search`);
 
         // REAL API CALL
-        const realResults = await searchTorNetwork(query);
+        const { results: realResults, debug } = await searchTorNetwork(query);
         
         addLog(`> Connection Established.`);
-        addLog(`> Retrieved ${realResults.length} live results.`);
+        
+        if (debug) {
+            addLog(`> [DEBUG] Page Title: ${debug.title}`);
+            addLog(`> [DEBUG] HTML Size: ${debug.htmlSize} bytes`);
+        }
+
+        if (realResults.length > 0) {
+             addLog(`> Retrieved ${realResults.length} live results.`);
+        } else {
+             addLog(`> WARNING: 0 results found.`);
+             addLog(`> Torch might be overloaded or keyword has no matches.`);
+        }
         
         setResults(realResults);
         onResultsFound(realResults);
@@ -125,7 +133,7 @@ const SearchIntel: React.FC<SearchIntelProps> = ({ onResultsFound, onAnalyze }) 
                     isSearching ? 'bg-slate-700 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-900/20'
                 }`}
             >
-                {isSearching ? <><Loader className="animate-spin" size={18}/> Routing to Darknet...</> : 'Initiate Live Search'}
+                {isSearching ? <><Loader className="animate-spin" size={18}/> Routing to Darknet (Torch)...</> : 'Initiate Live Search'}
             </button>
         </form>
       </div>

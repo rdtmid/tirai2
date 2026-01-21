@@ -13,7 +13,7 @@ export const checkSystemStatus = async () => {
   }
 };
 
-export const searchTorNetwork = async (query: string): Promise<OnionSite[]> => {
+export const searchTorNetwork = async (query: string): Promise<{ results: OnionSite[], debug?: any }> => {
   try {
     // Call our Node.js backend which scrapes Ahmia via SOCKS5
     const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
@@ -24,7 +24,7 @@ export const searchTorNetwork = async (query: string): Promise<OnionSite[]> => {
     }
 
     // Map backend results to OnionSite type
-    return json.data.map((item: any, index: number) => ({
+    const sites = json.data.map((item: any, index: number) => ({
       id: `real-${Date.now()}-${index}`,
       url: item.url,
       title: item.title || 'Unknown Hidden Service',
@@ -37,6 +37,11 @@ export const searchTorNetwork = async (query: string): Promise<OnionSite[]> => {
       source: 'Ahmia Scraper',
       engine: 'Tor Network'
     }));
+
+    return {
+      results: sites,
+      debug: json.debug
+    };
 
   } catch (error) {
     console.error("Real Search Error:", error);

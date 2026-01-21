@@ -1,13 +1,22 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult, SiteCategory, ThreatLevel, HostReconResult } from '../types';
 
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Try to get key from multiple possible injection points
+  const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_API_KEY;
+
   if (!apiKey) {
-    console.warn("API_KEY not found. AI features disabled.");
+    console.error("%c[Gemini Service] CRITICAL ERROR: API_KEY is missing!", "color: red; font-size: 14px; font-weight: bold;");
+    console.groupCollapsed("[Troubleshooting]");
+    console.log("1. Ensure '.env' file exists in project root.");
+    console.log("2. Ensure content is: API_KEY=AIzaSy...");
+    console.log("3. RESTART TERMINAL: 'npm run dev' to load new env vars.");
+    console.groupEnd();
     return null;
+  } else {
+    // console.log("[Gemini Service] API Key loaded successfully. Length:", apiKey.length);
   }
+  
   return new GoogleGenAI({ apiKey });
 };
 
@@ -15,7 +24,7 @@ export const analyzeTorContent = async (content: string): Promise<AnalysisResult
   const ai = getAiClient();
   
   if (!ai) {
-    throw new Error("Missing API Key. Cannot perform analysis.");
+    throw new Error("Missing API Key. See browser console for details.");
   }
 
   try {
@@ -26,7 +35,7 @@ export const analyzeTorContent = async (content: string): Promise<AnalysisResult
       
       Classify the site, determine the threat level, summarize, and extract entities.
       
-      Content: "${content.substring(0, 10000)}"`, // Limit characters
+      Content: "${content.substring(0, 10000)}"`, 
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -68,9 +77,8 @@ export const analyzeTorContent = async (content: string): Promise<AnalysisResult
 export const analyzeInfrastructure = async (target: string, scanData: any): Promise<HostReconResult> => {
   const ai = getAiClient();
 
-  if (!ai) throw new Error("Missing API Key");
+  if (!ai) throw new Error("Missing API Key. Check browser console for details.");
 
-  // We feed the AI the REAL scan data from our backend (headers, html title, etc)
   const context = JSON.stringify(scanData);
 
   try {
